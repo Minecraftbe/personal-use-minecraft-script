@@ -1,0 +1,6 @@
+*.code-workspace
+.idea
+.vscode
+diff.txt
+*.log
+output.txt
