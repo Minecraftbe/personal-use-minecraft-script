@@ -55,16 +55,19 @@ def get_modid_from_filename(filename: str) -> str:
 
 
 def get_modid(file: Path) -> str:
+    metadata = ["neoforge.mods.toml", "mods.toml"]
     with ZipFile(file) as zip_:
-        try:
-            with zip_.open("META-INF/neoforge.mods.toml", mode="r") as f:
-                data = tomllib.load(f)
-                mod_id = data["mods"][0]["modId"]
-                return mod_id
-        except KeyError:
-            print(f"Warning: modid解析失败, 模组:{file.name}")
-        except (ValueError, tomllib.TOMLDecodeError) as e:
-            print(e)
+        for m in metadata:
+            try:
+                with zip_.open(f"META-INF/{m}", mode="r") as f:
+                    data = tomllib.load(f)
+                    mod_id = data["mods"][0]["modId"]
+                    return mod_id
+            except KeyError:
+                continue
+                # print(f"Warning: modid解析失败, 模组:{file.name}")
+            except (ValueError, tomllib.TOMLDecodeError) as e:
+                print(e)
     return get_modid_from_filename(file.stem)
 
 
@@ -81,6 +84,7 @@ def build_diff_text(old: set[ModInfo], new: set[ModInfo]) -> str:
     removed_or_customized = sorted(old - new, key=lambda x: x.name.lower())
 
     text: list[str] = ["只在新整合包中出现的mod(一般是更新或新增的模组):"]
+    # TODO: 修复diff文本在无差别时的bug
     text.extend(
         f"{INDENT}{x.name}" if len(updated_or_added) > 0 else f"{INDENT}无"
         for x in updated_or_added
@@ -120,12 +124,27 @@ def move_files(
     if option_o.exists():
         shutil.copy(option_o, new_modpack)
 
-    mod_dst = new_modpack / "mods"
-    cfg_dst = new_modpack / "config"
+    saves = old_modpack / "saves"
+    if saves.exists():
+        shutil.copytree(saves, new_modpack / "saves", dirs_exist_ok=True)
 
+    screenshots = old_modpack / "screenshots"
+    if screenshots.exists():
+        shutil.copytree(screenshots, new_modpack / "screenshots", dirs_exist_ok=True)
+
+    res_pack = old_modpack / "resourcepacks"
+    if res_pack.exists():
+        shutil.copytree(res_pack, new_modpack / "resourcepacks", dirs_exist_ok=True)
+
+    xaero = old_modpack / "xaero"
+    if xaero.exists():
+        shutil.copytree(xaero, new_modpack / "xaero", dirs_exist_ok=True)
+
+    mod_dst = new_modpack / "mods"
     for info in mods:
         shutil.copy(info.full_path, mod_dst)
 
+    cfg_dst = new_modpack / "config"
     for cfg in configs:
         if cfg.is_file():
             shutil.copy(cfg, cfg_dst)
@@ -164,7 +183,11 @@ def confirm(prompt: str) -> bool:
 def show_chosen_files(
     old_modpack: Path, mods: Iterable[ModInfo], configs: Iterable[Path]
 ):
+    print("\n----------分割线-----------\n")
     print(f'即将迁移该整合包下的文件: "{old_modpack}"')
+    print("包括小地图文件, 截图, 资源包和存档")
+    if (old_modpack / "xaero").exists():
+        print("已发现xaero地图文件")
     print("模组:")
     text = [f"{INDENT}{Path(*x.full_path.parts[-2:])}" for x in mods]
     print("\n".join(text) if len(text) > 0 else f"{INDENT}无待迁移模组")
@@ -172,6 +195,9 @@ def show_chosen_files(
     print(f"{INDENT}options.txt")
     for x in configs:
         print(f"{INDENT}{Path(*x.parts[-2:])}")
+    print(
+        "注意!!只迁移旧版本有而新版本没有的模组, 请自动检查是否迁移错误或迁移了被删掉的模组"
+    )
 
 
 def cli_init() -> argparse.Namespace:
@@ -221,6 +247,7 @@ def main() -> None:
         f.write(diff)
         if debug:
             f.write(build_debug_text(o, n, older_pack, newer_pack))
+    print(diff)
 
     if not auto_move:
         print("未启用自动迁移，仅输出差异到 diff.txt")
