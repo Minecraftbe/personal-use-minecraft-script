@@ -4,3 +4,5 @@
 diff.txt
 *.log
 output.txt
+
+node_modules

@@ -1,0 +1,145 @@
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+importers:
+
+  .:
+    devDependencies:
+      '@jackmacwindows/cc-types':
+        specifier: file:types/cc
+        version: file:types/cc
+      '@jackmacwindows/craftos-types':
+        specifier: file:types/craftos
+        version: file:types/craftos
+      '@jackmacwindows/lua-types':
+        specifier: ^2.13.2
+        version: 2.13.2
+      '@jackmacwindows/typescript-to-lua':
+        specifier: ^1.22.0
+        version: 1.22.0(typescript@5.2.2)
+      typescript:
+        specifier: ^5.1.0
+        version: 5.2.2
+
+packages:
+
+  '@jackmacwindows/cc-types@file:types/cc':
+    resolution: {directory: types/cc, type: directory}
+
+  '@jackmacwindows/craftos-types@file:types/craftos':
+    resolution: {directory: types/craftos, type: directory}
+
+  '@jackmacwindows/lua-types@2.13.2':
+    resolution: {integrity: sha512-XoqHmgtG1SLWzmMx8wQc0sJtPmrzjCFbiwNiBIZE7HOEXWdJi7NDKVlE1nl9A5745Yb5jIkfz2deOzMtHiHVcQ==}
+
+  '@jackmacwindows/typescript-to-lua@1.22.0':
+    resolution: {integrity: sha512-1ZQycU/nNSRxQPPAOWr7366BKauGBnuv7H9ZhUvH7MSY5UyEXVD9ypkXjvoz849HtBwHRCnEOM6fTNWENgwKyQ==}
+    engines: {node: '>=16.10.0'}
+    hasBin: true
+    peerDependencies:
+      typescript: 5.2.2
+
+  '@typescript-to-lua/language-extensions@1.19.0':
+    resolution: {integrity: sha512-Os5wOKwviTD4LeqI29N0btYOjokSJ97iCf45EOjIABlb5IwNQy7AE/AqZJobRw3ywHH8+KzJUMkEirWPzh2tUA==}
+
+  enhanced-resolve@5.15.0:
+    resolution: {integrity: sha512-LXYT42KJ7lpIKECr2mAXIaMldcNCh/7E0KBKOu4KSfkHmP+mZmSs+8V5gBAqisWBy0OO4W5Oyys0GO1Y8KtdKg==}
+    engines: {node: '>=10.13.0'}
+
+  function-bind@1.1.2:
+    resolution: {integrity: sha512-7XHNxH7qX9xG5mIwxkhumTox/MIRNcOgDrxWsMt2pAr23WHp6MrRlN7FBSFpCpr+oVO0F744iUgR82nJMfG2SA==}
+
+  graceful-fs@4.2.11:
+    resolution: {integrity: sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ==}
+
+  hasown@2.0.0:
+    resolution: {integrity: sha512-vUptKVTpIJhcczKBbgnS+RtcuYMB8+oNzPK2/Hp3hanz8JmpATdmmgLgSaadVREkDm+e2giHwY3ZRkyjSIDDFA==}
+    engines: {node: '>= 0.4'}
+
+  is-core-module@2.13.1:
+    resolution: {integrity: sha512-hHrIjvZsftOsvKSn2TRYl63zvxsgE0K+0mYMoH6gD4omR5IWB2KynivBQczo3+wF1cCkjzvptnI9Q0sPU66ilw==}
+
+  path-parse@1.0.7:
+    resolution: {integrity: sha512-LDJzPVEEEPR+y48z93A0Ed0yXb8pAByGWo/k5YYdYgpY2/2EsOsksJrq7lOHxryrVOn1ejG6oAp8ahvOIQD8sw==}
+
+  picomatch@2.3.1:
+    resolution: {integrity: sha512-JU3teHTNjmE2VCGFzuY8EXzCDVwEqB2a8fsIvwaStHhAWJEeVd1o1QD80CU6+ZdEXXSLbSsuLwJjkCBWqRQUVA==}
+    engines: {node: '>=8.6'}
+
+  resolve@1.22.8:
+    resolution: {integrity: sha512-oKWePCxqpd6FlLvGV1VU0x7bkPmmCNolxzjMf4NczoDnQcIWrAF+cPtZn5i6n+RfD2d9i0tzpKnG6Yk168yIyw==}
+    hasBin: true
+
+  source-map@0.7.4:
+    resolution: {integrity: sha512-l3BikUxvPOcn5E74dZiq5BGsTb5yEwhaTSzccU6t4sDOH8NWJCstKO5QT2CvtFoK6F0saL7p9xHAqHOlCPJygA==}
+    engines: {node: '>= 8'}
+
+  supports-preserve-symlinks-flag@1.0.0:
+    resolution: {integrity: sha512-ot0WnXS9fgdkgIcePe6RHNk1WA8+muPa6cSjeR3V8K27q9BB1rTE3R1p7Hv0z1ZyAc8s6Vvv8DIyWf681MAt0w==}
+    engines: {node: '>= 0.4'}
+
+  tapable@2.2.1:
+    resolution: {integrity: sha512-GNzQvQTOIP6RyTfE2Qxb8ZVlNmw0n88vp1szwWRimP02mnTsx3Wtn5qRdqY9w2XduFNUgvOwhNnQsjwCp+kqaQ==}
+    engines: {node: '>=6'}
+
+  typescript@5.2.2:
+    resolution: {integrity: sha512-mI4WrpHsbCIcwT9cF4FZvr80QUeKvsUsUvKDoR+X/7XHQH98xYD8YHZg7ANtz2GtZt/CBq2QJ0thkGJMHfqc1w==}
+    engines: {node: '>=14.17'}
+    hasBin: true
+
+snapshots:
+
+  '@jackmacwindows/cc-types@file:types/cc': {}
+
+  '@jackmacwindows/craftos-types@file:types/craftos': {}
+
+  '@jackmacwindows/lua-types@2.13.2': {}
+
+  '@jackmacwindows/typescript-to-lua@1.22.0(typescript@5.2.2)':
+    dependencies:
+      '@typescript-to-lua/language-extensions': 1.19.0
+      enhanced-resolve: 5.15.0
+      picomatch: 2.3.1
+      resolve: 1.22.8
+      source-map: 0.7.4
+      typescript: 5.2.2
+
+  '@typescript-to-lua/language-extensions@1.19.0': {}
+
+  enhanced-resolve@5.15.0:
+    dependencies:
+      graceful-fs: 4.2.11
+      tapable: 2.2.1
+
+  function-bind@1.1.2: {}
+
+  graceful-fs@4.2.11: {}
+
+  hasown@2.0.0:
+    dependencies:
+      function-bind: 1.1.2
+
+  is-core-module@2.13.1:
+    dependencies:
+      hasown: 2.0.0
+
+  path-parse@1.0.7: {}
+
+  picomatch@2.3.1: {}
+
+  resolve@1.22.8:
+    dependencies:
+      is-core-module: 2.13.1
+      path-parse: 1.0.7
+      supports-preserve-symlinks-flag: 1.0.0
+
+  source-map@0.7.4: {}
+
+  supports-preserve-symlinks-flag@1.0.0: {}
+
+  tapable@2.2.1: {}
+
+  typescript@5.2.2: {}
