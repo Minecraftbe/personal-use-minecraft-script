@@ -37,16 +37,17 @@ const logger = {
 enum CraneState {
     unloading,
     loading,
+    resetting,
     idle
 }
 
-const craneStateString = ["unloading", "loading", "idle"]
+const craneStateString = ["unloading", "loading", "resetting", "idle"]
 
 interface CraneAction {
     displayName?: string
-    action: () => void
-    condition?: () => boolean
-    end?: () => void
+    action(crane: Crane): void
+    condition?(crane: Crane): boolean
+    end?(crane: Crane): void
     timeout?: number
 }
 
@@ -56,7 +57,7 @@ interface CraneAction {
  * 
  * 如果研究过cc redstone.setBundledOutput和颜色机制就明白我在说什么以及这个类做了什么
  */
-class ColorManager {
+class BundledRedstoneManager {
     private outputBuf = 0
     constructor(public side: string) {
         this.outputBuf = redstone.getBundledOutput(side)
@@ -134,10 +135,11 @@ class Crane {
     private currentState: CraneState = CraneState.idle
 
     constructor(
-        public actionGroup: Record<CraneState, CraneAction[]>,
+        readonly actionGroup: Record<CraneState, CraneAction[]>,
         private transitions: Partial<Record<CraneState, CraneState>>,
-        private runningCondition: () => boolean,// 在何时启动流程, 例如火车到站时
-        public waitAfterAction: number = 0.05
+        private runningCondition: (bm: BundledRedstoneManager) => boolean,// 在何时启动流程, 例如火车到站时
+        readonly bundledManager: BundledRedstoneManager,
+        readonly waitAfterAction: number = 0.05
     ) { }
 
     private update(): void {
@@ -146,7 +148,7 @@ class Crane {
         for (const action of this.actionGroup[this.currentState]) {
             logger.debug("Executing action: " + action.displayName)
 
-            action.action()
+            action.action(this)
 
             // 和llm交流是对的, 我自己想不出来这里有可能会有执行延迟导致空轮询, 所以干脆先停一小会
             if (this.waitAfterAction > 0) {
@@ -155,7 +157,7 @@ class Crane {
 
             const timeoutSec = action.timeout ?? 20
             const timerID = os.startTimer(timeoutSec)
-            while (!(action.condition?.() ?? true)) {
+            while (!(action.condition?.(this) ?? true)) {
                 const ev = event.pullEvent()
                 const name = ev.get_name()
                 if (name === "timer" && (ev as event.TimerEvent).id === timerID) {
@@ -163,7 +165,7 @@ class Crane {
                 };
             }
             os.cancelTimer(timerID)
-            action.end?.()
+            action.end?.(this)
         }
         this.currentState = this.transitions[this.currentState] ?? CraneState.idle // 如果没定义下一步动作则自动复位
     }
@@ -176,7 +178,7 @@ class Crane {
             logger.info("Transitioned to: " + craneStateString[this.currentState])
             if (prevState === CraneState.idle) {
                 logger.info("System Idle. Waiting for running conditions (Train docked & Yard clear)...")
-                while (!this.runningCondition()) event.pullEventAs(event.RedstoneEvent);
+                while (!this.runningCondition(this.bundledManager)) event.pullEventAs(event.RedstoneEvent);
                 logger.info("Conditions met! Starting crane sequence.")
             }
         }
@@ -222,34 +224,35 @@ const WARNING = {
 
 /**注意此预设里面的各种执行器状态实际上和硬件状态紧耦合, 例如ARM_REVERSE实际上在此预设中意味着大臂收回而非单纯反转
  * 
- * @param cm 
+ * @param crane.colorManager 
  * @returns 
  */
 
 // 此预设的假设: 
 // 当ARM_REVERSE set时, 大臂向内收 当LIFT_REVERSE set时, 升降机上升
-function completePreset(cm: ColorManager): [
+function completePreset(): [
     Record<CraneState, CraneAction[]>,
     Partial<Record<CraneState, CraneState>>,
-    () => boolean
+    (bm: BundledRedstoneManager) => boolean
 ] {
-    const liftCargo = {
+    const liftCargo: CraneAction = {
         displayName: "Lift Hook",
-        action() { cm.set(ACTUATOR.LIFT_REVERSE) },
-        condition() { return cm.isInputOn(SENSOR.HOOK_WORKING) }
+        action(crane) { crane.bundledManager.set(ACTUATOR.LIFT_REVERSE) },
+        condition(crane) { return crane.bundledManager.isInputOn(SENSOR.HOOK_WORKING) }
     }
-    const lowerAndLatch = {
+    const lowerAndLatch: CraneAction = {
         displayName: "Lower and Latch Hook",
-        action() { cm.reset(ACTUATOR.LIFT_REVERSE) },
-        condition() { return cm.isInputOn(SENSOR.HOOK_WORKING) },
-        end() { cm.pulse(ACTUATOR.HOOK_TOGGLE) },
+        action(crane) { crane.bundledManager.reset(ACTUATOR.LIFT_REVERSE) },
+        condition(crane) { return crane.bundledManager.isInputOn(SENSOR.HOOK_WORKING) },
+        end(crane) { crane.bundledManager.pulse(ACTUATOR.HOOK_TOGGLE) },
     }
     // FIXME: 修复这里的运行逻辑错误
     const actionGroup: Record<CraneState, CraneAction[]> = {
         [CraneState.idle]: [
             {
                 displayName: "Attempt Hook Lift",
-                action() {
+                action(crane) {
+                    const cm = crane.bundledManager
                     if (!cm.isOutputting(ACTUATOR.ARM_STOP)) {
                         cm.set(ACTUATOR.ARM_STOP)
                     }
@@ -262,7 +265,8 @@ function completePreset(cm: ColorManager): [
             },
             {
                 displayName: "Release Check and Raise",
-                action() {
+                action(crane) {
+                    const cm = crane.bundledManager
                     if (cm.isInputOn(SENSOR.HOOK_WORKING)) {
                         cm.reset(ACTUATOR.LIFT_REVERSE)
                         sleep(3)
@@ -271,69 +275,69 @@ function completePreset(cm: ColorManager): [
                     cm.set(ACTUATOR.LIFT_REVERSE)
                 },
                 condition() { sleep(13); return true },
-                end() { cm.reset(ACTUATOR.ARM_STOP) },
+                end(crane) { crane.bundledManager.reset(ACTUATOR.ARM_STOP) },
             },
             {
                 displayName: "Reset Main Arm",
-                action() { cm.set(ACTUATOR.ARM_REVERSE) },
+                action(c) { c.bundledManager.set(ACTUATOR.ARM_REVERSE) },
                 condition() { sleep(13); return true },
             }
         ],
         [CraneState.loading]: [
             {
                 displayName: "Move Arm to Loading Area",
-                action() { cm.reset(ACTUATOR.ARM_STOP); cm.reset(ACTUATOR.ARM_REVERSE) },
-                condition() { return cm.isInputOn(SENSOR.CRANE_AT_LOAD) },
-                end() { cm.set(ACTUATOR.ARM_STOP) }
+                action(c) { c.bundledManager.reset(ACTUATOR.ARM_STOP); c.bundledManager.reset(ACTUATOR.ARM_REVERSE) },
+                condition(c) { return c.bundledManager.isInputOn(SENSOR.CRANE_AT_LOAD) },
+                end(c) { c.bundledManager.set(ACTUATOR.ARM_STOP) }
             },
             lowerAndLatch,
             liftCargo,
             {
                 displayName: "Move Arm to Train Carriage",
-                action() { cm.reset(ACTUATOR.ARM_STOP) },
-                condition() { return cm.isInputOn(SENSOR.CRANE_AT_TRAIN) },
+                action(c) { c.bundledManager.reset(ACTUATOR.ARM_STOP) },
+                condition(c) { return c.bundledManager.isInputOn(SENSOR.CRANE_AT_TRAIN) },
             },
             {
                 displayName: "Lower Hook and Unload",
-                action() { cm.reset(ACTUATOR.LIFT_REVERSE) },
-                condition() { return cm.isInputOn(SENSOR.HOOK_WORKING) },
-                end() { cm.set(ACTUATOR.HOOK_TOGGLE) }
+                action(c) { c.bundledManager.reset(ACTUATOR.LIFT_REVERSE) },
+                condition(c) { return c.bundledManager.isInputOn(SENSOR.HOOK_WORKING) },
+                end(c) { c.bundledManager.set(ACTUATOR.HOOK_TOGGLE) }
             },
             {
                 displayName: "Lift Hook",
-                action() { cm.set(ACTUATOR.LIFT_REVERSE) },
+                action(c) { c.bundledManager.set(ACTUATOR.LIFT_REVERSE) },
                 condition() { sleep(13); return true }
             }
         ],
         [CraneState.unloading]: [
             {
                 displayName: "Move Arm Above Train",
-                action() { cm.reset(ACTUATOR.ARM_REVERSE) },
-                condition() { return cm.isInputOn(SENSOR.CRANE_AT_TRAIN) },
-                end() { cm.set(ACTUATOR.ARM_STOP) },
+                action(c) { c.bundledManager.reset(ACTUATOR.ARM_REVERSE) },
+                condition(c) { return c.bundledManager.isInputOn(SENSOR.CRANE_AT_TRAIN) },
+                end(c) { c.bundledManager.set(ACTUATOR.ARM_STOP) },
             },
             lowerAndLatch,
             liftCargo,
             {
                 displayName: "Move Arm to Unloading Area",
-                action() { cm.set(ACTUATOR.ARM_REVERSE) },
-                condition() { return cm.isInputOn(SENSOR.CRANE_AT_UNLOAD) },
-                end() { cm.set(ACTUATOR.ARM_STOP) }
+                action(c) { c.bundledManager.set(ACTUATOR.ARM_REVERSE) },
+                condition(c) { return c.bundledManager.isInputOn(SENSOR.CRANE_AT_UNLOAD) },
+                end(c) { c.bundledManager.set(ACTUATOR.ARM_STOP) }
             },
             {
                 displayName: "Lower Hook and Unload",
-                action() { cm.reset(ACTUATOR.LIFT_REVERSE) },
-                condition() { return cm.isInputOn(SENSOR.YARD_UNLOAD_OCCUPIED) },
-                end() { cm.set(ACTUATOR.HOOK_TOGGLE) }
+                action(c) { c.bundledManager.reset(ACTUATOR.LIFT_REVERSE) },
+                condition(c) { return c.bundledManager.isInputOn(SENSOR.YARD_UNLOAD_OCCUPIED) },
+                end(c) { c.bundledManager.set(ACTUATOR.HOOK_TOGGLE) }
             },
             {
                 displayName: "Lift Hook",
-                action() { cm.set(ACTUATOR.LIFT_REVERSE) },
+                action(c) { c.bundledManager.set(ACTUATOR.LIFT_REVERSE) },
                 condition() { sleep(13); return true }
             },
             {
                 displayName: "Notify Train",
-                action() { cm.set(ACTUATOR.TRAIN_READY) }
+                action(c) { c.bundledManager.set(ACTUATOR.TRAIN_READY) }
             }
         ]
     }
@@ -342,17 +346,17 @@ function completePreset(cm: ColorManager): [
         [CraneState.unloading]: CraneState.loading,
         [CraneState.loading]: CraneState.idle
     }
-    const runningCondition = () => {
-        return cm.isInputOn(SENSOR.TRAIN_DOCKED)
-            && !cm.isInputOn(SENSOR.YARD_UNLOAD_OCCUPIED)
+    const runningCondition = (bm: BundledRedstoneManager) => {
+        return bm.isInputOn(SENSOR.TRAIN_DOCKED)
+            && !bm.isInputOn(SENSOR.YARD_UNLOAD_OCCUPIED)
     }
     return [actionGroup, transitions, runningCondition]
 }
 
 function main() {
-    const cm = new ColorManager("right")
-    cm.reset(WARNING.WARN)
-    const crane = new Crane(...completePreset(cm));
+    const bm = new BundledRedstoneManager("right")
+    bm.reset(WARNING.WARN)
+    const crane = new Crane(...completePreset(), bm);
 
     logger.info("Crane Control System Initialized.");
 
@@ -366,9 +370,9 @@ function main() {
             logger.warn("Termination signal received. Safely stopping...");
         } else if (lowerMsg.includes("timeout")) {
             logger.error("Operation Timeout: " + errorMsg);
-            cm.set(WARNING.WARN);
+            bm.set(WARNING.WARN);
         } else {
-            cm.set(WARNING.WARN);
+            bm.set(WARNING.WARN);
             logger.error("System Panic: " + errorMsg);
         }
 
