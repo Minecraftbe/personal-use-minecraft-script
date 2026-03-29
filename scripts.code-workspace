@@ -1,0 +1,24 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"cSpell.words": [
+			"iprefix",
+			"isuffix",
+			"lsuffix",
+			"mekanism",
+			"modid",
+			"neoforge",
+			"textutils",
+			"tstl",
+			"tweakerge",
+			"tweakeroo",
+			"xaero",
+			"xaerominimap",
+			"xaeroworldmap"
+		]
+	}
+}

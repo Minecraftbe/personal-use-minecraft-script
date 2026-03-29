@@ -1,4 +1,5 @@
-*.code-workspace
+# 由于是个人自用代码, 因此不把这个屏蔽掉
+# *.code-workspace
 .idea
 .vscode
 diff.txt
